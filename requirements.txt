@@ -1,0 +1,6 @@
+torch
+numpy
+pillow
+modelscope
+accelerate
+git+https://github.com/huggingface/transformers
