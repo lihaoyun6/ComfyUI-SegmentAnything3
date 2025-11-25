@@ -137,7 +137,7 @@ class SAM3Segmentation:
                     "tooltip": "Max frames to process (-1 for all)."
                 }),
                 "object_id": ("INT", {
-                    "default": 0,
+                    "default": -1,
                     "min": -1,
                     "max": 1000,
                     "step": 1,
