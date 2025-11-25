@@ -36,7 +36,7 @@ class SAM3ModelLoader:
                 "precision": (["fp16", "bf16", "fp32"], {"default": "fp16"}),
                 "segmentor": (["image", "image (text prompt)", "video", "video (text prompt)"], {
                     "default": "image (text prompt)",
-                    "tooltip": "Choose between image or video segmentation mode."
+                    "tooltip": "Choose between image or video segmentation mode.\nSegmentors with (text prompt) suffix only support text prompts, while others don't."
                 })
             }
         }
