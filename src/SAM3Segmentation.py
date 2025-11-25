@@ -70,8 +70,8 @@ class SAM3ModelLoader:
             
         model_path = os.path.join(model_folder, model.replace("/", "-"))
         if not os.path.exists(model_path):
-            print(f"[SAM3] Local file doesn't exist. Downloading {model}...")
-            _save_dir = snapshot_download(model_id=model, local_dir=model_path)
+            print(f"[SAM3] Local file doesn't exist. Downloading [{model}]...")
+            _save_dir = snapshot_download(model_id=model, ignore_patterns='sam3.pt', local_dir=model_path)
             
         patch = None
         if segmentor == "video (text prompt)":
