@@ -313,6 +313,7 @@ class SAM3Segmentation:
                                 binarize=False
                             )[0]
                             active_obj_ids = inference_session.obj_ids
+                            print(f"frame [{sam3_tracker_video_output.frame_idx}], objects [{active_obj_ids}]")
                             if object_id > -1 and active_obj_ids and object_id in active_obj_ids:
                                 try:
                                     target_idx = active_obj_ids.index(object_id)
@@ -321,7 +322,7 @@ class SAM3Segmentation:
                                     pass
                             else:
                                 single_frame_mask = video_res_masks.any(dim=0).squeeze()
-                        final_masks_tensor[sam3_tracker_video_output.frame_idx] = single_frame_mask.float().cpu()
+                            final_masks_tensor[sam3_tracker_video_output.frame_idx] = single_frame_mask.float().cpu()
                         
                         print(f"[SAM3] Processed {final_masks_tensor.shape[0]} frames.")
                         del inference_session
