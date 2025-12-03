@@ -4,4 +4,4 @@ pillow
 modelscope
 accelerate
 diffusers>=0.3.51
-transformers==5.0.0rc
+transformers>=5.0.0rc
