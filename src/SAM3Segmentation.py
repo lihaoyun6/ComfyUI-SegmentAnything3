@@ -334,27 +334,34 @@ class SAM3Segmentation:
                             "Please provide any text prompts (e.g., 'person', 'car', etc.)\n"
                         )
                         
-                    image = Image.fromarray(np.clip(255.0 * images[0].cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
-                    inputs = processor(images=image, text=prompt, return_tensors="pt").to(device)
+                    image_list = [Image.fromarray(np.clip(255.0 * img.cpu().numpy().squeeze(), 0, 255).astype(np.uint8)) for img in images]
+                    prompt_list = [prompt] * len(image_list)
+                    inputs = processor(images=image_list, text=prompt_list, return_tensors="pt").to(device)
                     
                     with torch.no_grad(), torch.autocast(device_type=device.type, dtype=dtype):
                         outputs = model(**inputs)
-                        
-                        results = processor.post_process_instance_segmentation(
+                        results_list = processor.post_process_instance_segmentation(
                             outputs,
                             threshold=score_threshold_detection,
                             mask_threshold=0.5,
                             target_sizes=inputs.get("original_sizes").tolist()
-                        )[0]
-                        
-                        masks = results['masks']
-                        print(f"[SAM3] Found {len(masks)} objects")
-                        if object_id > -1:
-                            if object_id + 1 <= len(masks):
-                                return (masks[object_id].cpu(),)
-                        else:
-                            return (masks.any(dim=0).cpu().squeeze(),)
-                        return (torch.zeros((height, width), dtype=torch.float32, device="cpu"),)
+                        )
+                    
+                        for idx, results in enumerate(results_list):
+                            masks = results["masks"]
+                            num_objects = len(masks)
+                            #print(f"[SAM3] Frame {idx}: Found {num_objects} objects")
+                            
+                            if object_id > -1:
+                                if object_id < num_objects:
+                                    final_masks_tensor[idx] = masks[object_id].cpu()
+                                else:
+                                    final_masks_tensor[idx] = torch.zeros((height, width), dtype=torch.float32)
+                            else:
+                                if num_objects > 0:
+                                    final_masks_tensor[idx] = masks.any(dim=0).cpu().squeeze()
+                                else:
+                                    final_masks_tensor[idx] = torch.zeros((height, width), dtype=torch.float32)
                 else:
                     boxes, box_labels = get_boxes_and_labels(bbox)
                     points, point_labels = get_points_and_labels(positive_coords, negative_coords)

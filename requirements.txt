@@ -4,4 +4,4 @@ pillow
 modelscope
 accelerate
 diffusers>=0.3.51
-git+https://github.com/huggingface/transformers
+transformers==5.0.0rc
