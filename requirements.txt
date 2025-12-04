@@ -4,4 +4,4 @@ pillow
 modelscope
 accelerate
 diffusers>=0.3.51
-transformers==5.0.0rc
+https://files.pythonhosted.org/packages/8e/a9/fc60ee518b57fefca1551b15b36a5e934a101148327003fd18741c732b5b/transformers-5.0.0rc0-py3-none-any.whl
