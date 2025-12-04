@@ -8,7 +8,7 @@ from transformers import (
     Sam3Model, Sam3Processor,
     Sam3TrackerModel, Sam3TrackerProcessor
 )
-from accelerate import Accelerator
+#from accelerate import Accelerator
 from types import MethodType
 from PIL import Image
 
@@ -56,7 +56,7 @@ class SAM3ModelLoader:
             gc.collect()
             mm.soft_empty_cache()
             
-        _device = Accelerator().device if device == "auto" else torch.device(device)
+        _device = mm.get_torch_device() if device == "auto" else torch.device(device)
         dtype_map = {
             "fp32": torch.float32,
             "fp16": torch.float16,
@@ -333,35 +333,33 @@ class SAM3Segmentation:
                             "[SAM3] No text prompt provided!\n"
                             "Please provide any text prompts (e.g., 'person', 'car', etc.)\n"
                         )
+                    
+                    for idx, img in enumerate(cqdm(images)):
+                        image = Image.fromarray(np.clip(255.0 * img.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+                        inputs = processor(images=image, text=prompt, return_tensors="pt").to(device)
                         
-                    image_list = [Image.fromarray(np.clip(255.0 * img.cpu().numpy().squeeze(), 0, 255).astype(np.uint8)) for img in images]
-                    prompt_list = [prompt] * len(image_list)
-                    inputs = processor(images=image_list, text=prompt_list, return_tensors="pt").to(device)
-                    
-                    with torch.no_grad(), torch.autocast(device_type=device.type, dtype=dtype):
-                        outputs = model(**inputs)
-                        results_list = processor.post_process_instance_segmentation(
-                            outputs,
-                            threshold=score_threshold_detection,
-                            mask_threshold=0.5,
-                            target_sizes=inputs.get("original_sizes").tolist()
-                        )
-                    
-                        for idx, results in enumerate(results_list):
-                            masks = results["masks"]
-                            num_objects = len(masks)
-                            #print(f"[SAM3] Frame {idx}: Found {num_objects} objects")
-                            
+                        with torch.no_grad(), torch.autocast(device_type=device.type, dtype=dtype):
+                            outputs = model(**inputs)
+                        
+                            results = processor.post_process_instance_segmentation(
+                                outputs,
+                                threshold=score_threshold_detection,
+                                mask_threshold=0.5,
+                                target_sizes=inputs.get("original_sizes").tolist()
+                            )[0]
+                        
+                            masks = results['masks']
+                            #print(f"[SAM3] Found {len(masks)} objects")
                             if object_id > -1:
-                                if object_id < num_objects:
+                                if object_id + 1 <= len(masks):
                                     final_masks_tensor[idx] = masks[object_id].cpu()
-                                else:
-                                    final_masks_tensor[idx] = torch.zeros((height, width), dtype=torch.float32)
+                                    continue
                             else:
-                                if num_objects > 0:
-                                    final_masks_tensor[idx] = masks.any(dim=0).cpu().squeeze()
-                                else:
-                                    final_masks_tensor[idx] = torch.zeros((height, width), dtype=torch.float32)
+                                current_mask = masks.any(dim=0)
+                                if current_mask.shape == (height, width):
+                                    final_masks_tensor[idx] = current_mask.cpu().squeeze()
+                                    continue
+                            final_masks_tensor[idx] = torch.zeros((height, width), dtype=torch.float32, device="cpu")
                 else:
                     boxes, box_labels = get_boxes_and_labels(bbox)
                     points, point_labels = get_points_and_labels(positive_coords, negative_coords)
