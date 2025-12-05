@@ -49,8 +49,9 @@ def get_boxes_and_labels(bbox):
 	combined_box_labels_list = []
 	
 	if bbox is not None:
-		combined_boxes_list.extend(bbox)
-		combined_box_labels_list.extend([1] * len(bbox))
+		clean_boxes = [list(b) if isinstance(b, (tuple, list)) else b for b in bbox]
+		combined_boxes_list.extend(clean_boxes)
+		combined_box_labels_list.extend([1] * len(clean_boxes))
 		
 	final_input_boxes = [combined_boxes_list] if combined_boxes_list else None
 	final_input_box_labels = [combined_box_labels_list] if combined_box_labels_list else None
