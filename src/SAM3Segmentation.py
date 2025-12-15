@@ -34,10 +34,14 @@ class SAM3ModelLoader:
                     "tooltip": "Device to load the weights, default: auto (CUDA if available, else CPU)"
                 }),
                 "precision": (["fp16", "bf16", "fp32"], {"default": "fp16"}),
-                "segmentor": (["image", "image (text prompt)", "video", "video (text prompt)"], {
-                    "default": "image (text prompt)",
-                    "tooltip": "Choose between image or video segmentation mode.\nSegmentors with (text prompt) suffix only support text prompts, while others don't."
-                })
+                "segmentor": (["image", "video"], {
+                    "default": "image",
+                    "tooltip": "Choose between image or video segmentation mode."
+                }),
+                "text_prompts": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": "Use text prompts instead of conditions for segmentation."
+                }),
             }
         }
     
@@ -45,7 +49,7 @@ class SAM3ModelLoader:
     FUNCTION = "main"
     CATEGORY = "SAM3"
     
-    def main(self, model, device, precision, segmentor):
+    def main(self, model, device, precision, segmentor, text_prompts):
         if hasattr(self, "_model"):
             self._model.to("cpu")
             try:
@@ -74,20 +78,21 @@ class SAM3ModelLoader:
             _save_dir = snapshot_download(model_id=model, ignore_patterns='sam3.pt', local_dir=model_path)
             
         patch = None
-        if segmentor == "video (text prompt)":
-            mod = Sam3VideoModel
-            proc = Sam3VideoProcessor
-            patch = propagate_video_patched
-        elif segmentor == "video":
-            mod = Sam3TrackerVideoModel
-            proc = Sam3TrackerVideoProcessor
-            patch = propagate_video_tracker_patched
-        elif segmentor == "image (text prompt)":
-            mod = Sam3Model
-            proc = Sam3Processor
+        if text_prompts:
+            if segmentor == "video":
+                mod = Sam3VideoModel
+                proc = Sam3VideoProcessor
+                patch = propagate_video_patched
+                mod = Sam3Model
+                proc = Sam3Processor
         else:
-            mod = Sam3TrackerModel
-            proc = Sam3TrackerProcessor
+            if segmentor == "video":
+                mod = Sam3TrackerVideoModel
+                proc = Sam3TrackerVideoProcessor
+                patch = propagate_video_tracker_patched
+            else:
+                mod = Sam3TrackerModel
+                proc = Sam3TrackerProcessor
             
         self._model = mod.from_pretrained(model_path).to(_device, dtype=dtype)
         self.processor = proc.from_pretrained(model_path)
@@ -100,6 +105,7 @@ class SAM3ModelLoader:
             "dtype": dtype,
             "device": _device,
             "segmentor": segmentor,
+            "use_text": text_prompts
         }
         
         return (model_dict,)
@@ -198,6 +204,7 @@ class SAM3Segmentation:
         model = sam3_model["model"]
         processor = sam3_model["processor"]
         segmentor = sam3_model["segmentor"]
+        use_text = sam3_model["use_text"]
         dtype = sam3_model["dtype"]
         device = sam3_model["device"]
         
@@ -212,11 +219,11 @@ class SAM3Segmentation:
         exatr_config["new_det_thresh"] = new_det_thresh
         
         try:
-            if "video" in segmentor:
+            if segmentor == "video":
                 # Convert video frames
                 video_frames = (np.clip(255.0 * images.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
                 
-                if "(text prompt)" in segmentor:
+                if use_text:
                     if not prompt or not prompt.strip():
                         raise ValueError(
                             "[SAM3] No text prompt provided!\n"
@@ -327,7 +334,7 @@ class SAM3Segmentation:
                         print(f"[SAM3] Processed {final_masks_tensor.shape[0]} frames.")
                         del inference_session
             else:
-                if "(text prompt)" in segmentor:
+                if use_text:
                     if not prompt or not prompt.strip():
                         raise ValueError(
                             "[SAM3] No text prompt provided!\n"
