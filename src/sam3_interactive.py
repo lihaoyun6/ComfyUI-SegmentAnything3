@@ -132,5 +132,5 @@ NODE_CLASS_MAPPINGS = {
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "SAM3PointCollector": "SAM3 Point Collector",
+    "SAM3PointCollector": "SAM3 Point Editor",
 }
