@@ -83,6 +83,7 @@ class SAM3ModelLoader:
                 mod = Sam3VideoModel
                 proc = Sam3VideoProcessor
                 patch = propagate_video_patched
+            else:
                 mod = Sam3Model
                 proc = Sam3Processor
         else:
@@ -110,6 +111,35 @@ class SAM3ModelLoader:
         
         return (model_dict,)
 
+'''
+class SAM3MultiObjectCoords:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "positive_coords": ("STRING", {
+                    "tooltip": "Positive click coordinates as JSON: '[{\"x\": 63, \"y\": 782}]'",
+                    "forceInput": True
+                }),
+                "negative_coords": ("STRING", {
+                    "tooltip": "Negative click coordinates as JSON: '[{\"x\": 100, \"y\": 200}]'",
+                    "forceInput": True
+                }),
+                "bbox": ("BBOX", {
+                    "tooltip": "Bounding box as (x_min, y_min, x_max, y_max) or (x, y, width, height) tuple. Compatible with KJNodes Points Editor bbox output."
+                }),
+                "mask": ("MASK", {
+                    "tooltip": "The mask(s) to add to the frame."
+                }),
+            },
+            "optional": {
+                "prev_coords": ("multi_object_coords", {
+                    "tooltip": "Track multiple objects simultaneously."
+                }),
+            }
+        }
+'''
+    
 class SAM3Segmentation:
     @classmethod
     def INPUT_TYPES(cls):
@@ -184,6 +214,9 @@ class SAM3Segmentation:
                 "mask": ("MASK", {
                     "tooltip": "The mask(s) to add to the frame."
                 }),
+                #"multi_object_coords": ("multi_object_coords", {
+                #    "tooltip": "Track multiple objects simultaneously across video frames."
+                #}),
             }
         }
     
@@ -199,7 +232,7 @@ class SAM3Segmentation:
                     print(f"[SAM3] Set model.{key} = {value}")
                     setattr(model, key, value)
     
-    def main(self, sam3_model, images, prompt, frame_index, start_frame_index, max_frames_to_track, object_id, score_threshold_detection, new_det_thresh, reverse_propagation, exatr_config=None, positive_coords="", negative_coords="", bbox=None, mask=None):
+    def main(self, sam3_model, images, prompt, frame_index, start_frame_index, max_frames_to_track, object_id, score_threshold_detection, new_det_thresh, reverse_propagation, exatr_config=None, positive_coords="", negative_coords="", bbox=None, mask=None):#, multi_object_coords=None):
         
         model = sam3_model["model"]
         processor = sam3_model["processor"]
@@ -321,14 +354,16 @@ class SAM3Segmentation:
                             )[0]
                             active_obj_ids = inference_session.obj_ids
                             #print(f"frame [{sam3_tracker_video_output.frame_idx}], objects [{active_obj_ids}]")
-                            if object_id > -1 and active_obj_ids and object_id in active_obj_ids:
-                                try:
+                            if object_id > -1 and active_obj_ids:
+                                if object_id in active_obj_ids:
                                     target_idx = active_obj_ids.index(object_id)
                                     single_frame_mask = video_res_masks[target_idx].squeeze()
-                                except (ValueError, IndexError):
-                                    pass
+                                else:
+                                    single_frame_mask = torch.zeros((height, width), dtype=torch.bool, device="cpu")
                             else:
-                                single_frame_mask = video_res_masks.any(dim=0).squeeze()
+                                masks_to_merge = video_res_masks.squeeze(1) 
+                                single_frame_mask = torch.max(masks_to_merge, dim=0).values
+                                #single_frame_mask = video_res_masks.max(dim=0).squeeze()
                             final_masks_tensor[sam3_tracker_video_output.frame_idx] = single_frame_mask.float().cpu()
                         
                         print(f"[SAM3] Processed {final_masks_tensor.shape[0]} frames.")

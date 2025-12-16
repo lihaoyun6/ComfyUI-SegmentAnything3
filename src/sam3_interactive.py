@@ -3,6 +3,8 @@ SAM3 Point Collector - Interactive Point Selection
 
 Point editor widget adapted from ComfyUI-KJNodes
 Original: https://github.com/PozzettiAndrea/ComfyUI-SAM3
+
+The "pause" code from: https://github.com/wywywywy/ComfyUI-pause
 """
 
 import torch
@@ -11,7 +13,6 @@ import json
 import io
 import base64
 from PIL import Image
-
 
 class SAM3PointCollector:
     """
@@ -23,8 +24,7 @@ class SAM3PointCollector:
 
     Outputs point arrays to feed into SAM3Segmentation node.
     """
-    # Class-level cache for output results
-    _cache = {}
+    _cache = {} # Class-level cache for output results
     
     @classmethod
     def INPUT_TYPES(cls):
@@ -49,13 +49,14 @@ class SAM3PointCollector:
     @classmethod
     def IS_CHANGED(cls, image, points_store, coordinates, neg_coordinates):
         # Return hash based on actual point content, not object identity
+        # This ensures downstream nodes don't re-run when points haven't changed
         import hashlib
         h = hashlib.md5()
-        h.update(str(image.shape).encode())
+        #h.update(str(image.shape).encode())
         h.update(coordinates.encode())
         h.update(neg_coordinates.encode())
         result = h.hexdigest()
-        print(f"[IS_CHANGED DEBUG] SAM3PointCollector: shape={image.shape}, coords={coordinates}, neg_coords={neg_coordinates}")
+        #print(f"[IS_CHANGED DEBUG] SAM3PointCollector: shape={image.shape}, coords={coordinates}, neg_coords={neg_coordinates}")
         print(f"[IS_CHANGED DEBUG] SAM3PointCollector: returning hash={result}")
         return result
     
@@ -124,7 +125,6 @@ class SAM3PointCollector:
         img_base64 = base64.b64encode(img_bytes).decode('utf-8')
         
         return img_base64
-
 
 # Node mappings for ComfyUI registration
 NODE_CLASS_MAPPINGS = {
