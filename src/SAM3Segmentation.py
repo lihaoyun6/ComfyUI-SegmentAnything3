@@ -1,5 +1,6 @@
 from .utils import get_device_list, get_points_and_labels, get_boxes_and_labels
-from .patch import cqdm, propagate_video_patched, propagate_video_tracker_patched
+from .patch import propagate_video_patched, propagate_video_tracker_patched
+from .cqdm import cqdm
 
 from modelscope.hub.snapshot_download import snapshot_download
 from transformers import (
@@ -8,7 +9,7 @@ from transformers import (
     Sam3Model, Sam3Processor,
     Sam3TrackerModel, Sam3TrackerProcessor
 )
-#from accelerate import Accelerator
+
 from types import MethodType
 from PIL import Image
 
@@ -94,8 +95,9 @@ class SAM3ModelLoader:
             else:
                 mod = Sam3TrackerModel
                 proc = Sam3TrackerProcessor
-            
-        self._model = mod.from_pretrained(model_path).to(_device, dtype=dtype)
+        
+        print(f"[SAM3] Loading SAM3 model...")
+        self._model = mod.from_pretrained(model_path, torch_dtype=dtype, device_map=_device).eval().to(_device)
         self.processor = proc.from_pretrained(model_path)
         if patch is not None:
             self._model.propagate_in_video_iterator = MethodType(patch, self._model)
