@@ -3,6 +3,6 @@ numpy
 pillow
 modelscope
 accelerate
-peft>=0.18.0
+# peft>=0.18.0
 diffusers>=0.3.51
-transformers>=5.0.0
+https://files.pythonhosted.org/packages/1e/f2/ae2b8968764253bdf38a48dee3c299b8d0bedf7c8ffbe3449fca9bd95338/transformers-5.0.0rc3-py3-none-any.whl
